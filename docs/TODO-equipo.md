@@ -19,3 +19,12 @@ Hecho: app, scripts de backup/restore, Docker, workflows, imágenes, borradores 
 1. Reemplazar los `{{...}}` en los artículos y los TODO del README.
 2. Enviar los links (2 artículos, video, repo, app) al grupo de Telegram.
 3. Subir a la tarea un zip con un `.txt` con esos links.
+
+## Plantilla de MONGODB_URI (sin contraseña)
+Cluster Atlas: `MongoTest` (proyecto ProyectoClaudio). Reemplaza `USUARIO` y `CLAVE` (si la clave tiene caracteres especiales, codifícala como URL):
+
+```
+mongodb+srv://USUARIO:CLAVE@mongotest.klkdkjc.mongodb.net/notesdb?retryWrites=true&w=majority
+```
+
+Pegarla en: Render (variable `MONGODB_URI` del Blueprint) y GitHub > Settings > Secrets > Actions (`MONGODB_URI`).

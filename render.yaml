@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: nosql-backup-strategy
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: false # deploys are triggered by GitHub Actions (deploy hook)
+    envVars:
+      - key: MONGODB_URI
+        sync: false # MongoDB Atlas connection string, set in the dashboard
+      - key: MONGODB_DB
+        value: notesdb
+      - key: ADMIN_TOKEN
+        generateValue: true

@@ -1,0 +1,43 @@
+name: Weekly restore drill
+
+on:
+  schedule:
+    - cron: "0 8 * * 1" # Mondays 08:00 UTC
+  workflow_dispatch:
+
+jobs:
+  drill:
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:7
+        ports: ["27017:27017"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Install MongoDB Database Tools
+        run: |
+          curl -fsSL https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-100.10.0.deb -o tools.deb
+          sudo apt-get install -y ./tools.deb
+      - name: Download latest backup artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_ID=$(gh run list --workflow=backup.yml --status=success --limit 1 --json databaseId -q '.[0].databaseId')
+          gh run download "$RUN_ID" --dir restore
+      - name: Decrypt and verify in a throwaway MongoDB
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+          MONGODB_URI: mongodb://localhost:27017
+          BACKUP_DIR: ${{ runner.temp }}/backups
+        run: |
+          mkdir -p "$BACKUP_DIR"
+          cp restore/*/*.json "$BACKUP_DIR"/
+          NAME=$(basename "$BACKUP_DIR"/*.json .json)
+          openssl enc -d -aes-256-cbc -pbkdf2 -pass env:BACKUP_PASSPHRASE \
+            -in restore/*/backup.archive.gz.enc -out "$BACKUP_DIR/$NAME.archive.gz"
+          python -m app.backup verify "$NAME"

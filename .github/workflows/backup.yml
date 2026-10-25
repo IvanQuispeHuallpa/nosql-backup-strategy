@@ -1,0 +1,39 @@
+name: Scheduled backup
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # daily, 06:00 UTC
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Install MongoDB Database Tools
+        run: |
+          curl -fsSL https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-100.10.0.deb -o tools.deb
+          sudo apt-get install -y ./tools.deb
+      - name: Dump production database
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_DB: notesdb
+          BACKUP_DIR: ${{ runner.temp }}/backups
+        run: python -m app.backup create
+      - name: Encrypt archive (artifacts of public repos are world-readable)
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          cd "${{ runner.temp }}/backups"
+          openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:BACKUP_PASSPHRASE -in *.archive.gz -out backup.archive.gz.enc
+          rm *.archive.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mongodb-backup-${{ github.run_id }}
+          path: ${{ runner.temp }}/backups/*
+          retention-days: 30
